@@ -940,7 +940,7 @@ void App::pollUpdateCheck() {
     }
     updateStatus_ = "SculptForge " + u.version + " is available";
     // An automatic check stays quiet about a version the user chose to skip; asking again shows it.
-    if (job->manual || u.version != updateSkipped_) updateAvailable_ = u;
+    if (job->manual) updateAvailable_ = u; // SculptForgeG: quiet start, automatic checks show no banner
     if (job->manual) status_ = updateStatus_;
 }
 
