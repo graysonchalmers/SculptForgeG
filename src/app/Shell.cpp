@@ -1133,6 +1133,10 @@ void App::drawTitleStrip(const ShellGeometry& g) {
     ImGui::SetCursorPosY(textY);
     if (fontBold_) ImGui::PushFont(fontBold_);
     ImGui::TextUnformatted(tr("SculptForge"));
+    ImGui::SameLine(0.0f, 0.0f); // the fork's mark: a bold orange G after the name
+    ImGui::PushStyleColor(ImGuiCol_Text, theme::brand);
+    ImGui::TextUnformatted("G");
+    ImGui::PopStyleColor();
     if (fontBold_) ImGui::PopFont();
     barSpans_.push_back({brandX, ImGui::GetItemRectMax().x});
     const float nameEnd = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x; // (the cursor is on the next line)
@@ -1612,6 +1616,7 @@ void App::drawStatusBar(const ShellGeometry& g) {
     }
     const bool caps = style == Status::Terminal;
     x = textAt(bold, x, theme::textBright, caps ? "SCULPTFORGE" : "SculptForge");
+    x = textAt(bold, x, theme::brand, "G"); // the fork's mark: a bold orange G after the name
     // The version, small and dim beside the name (support screenshots); a beta's or a dev build's tag in the accent.
     const ShownVersion version = appShownVersion();
     const float versionW = 6.0f * s + textW(monoSmall, version.number) + (version.tag.empty() ? 0.0f : 4.0f * s + textW(monoSmall, version.tag));

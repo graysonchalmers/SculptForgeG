@@ -538,6 +538,11 @@ if(SCULPTFORGE_BUILD_APP)
   if(SF_GIT_COMMIT AND (SCULPTFORGE_DEV_BUILD STREQUAL "ON" OR (SCULPTFORGE_DEV_BUILD STREQUAL "AUTO" AND NOT DEFINED ENV{CI})))
     set_property(SOURCE src/app/PanelProject.cpp APPEND PROPERTY COMPILE_DEFINITIONS "SF_DEV_COMMIT=\"${SF_GIT_COMMIT}\"")
   endif()
+  # SculptForgeG (fork): our own build stamp, derived from the commit (emoji + codeword + short sha + date), written
+  # into a generated header (UTF-8, so the emoji survive every generator). cmake/SfgStamp.cmake.
+  include(cmake/SfgStamp.cmake)
+  sfg_write_stamp_header(${CMAKE_BINARY_DIR}/generated/SfgStamp.h)
+  target_include_directories(sculptforge PRIVATE ${CMAKE_BINARY_DIR}/generated)
   if(MSVC)
     target_compile_options(sculptforge PRIVATE /W4 /utf-8 /permissive-)
   else()
