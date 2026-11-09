@@ -1,6 +1,7 @@
 name: Windows portable (fork)
 
 # Fork-only: builds the Windows portable .zip on a GitHub runner so no local MSVC build is needed.
+# Fast: no tests/Python, ccache as cl.exe (as ci.yml), seeded from main's CI Windows cache; a newer push cancels the old one.
 on:
   push:
     branches: ['claude/**']
@@ -9,16 +10,52 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-portable-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     runs-on: windows-2022
     timeout-minutes: 90
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_MAXSIZE: 500M
     steps:
       - uses: actions/checkout@v7
+      - name: ccache (Windows; the release binary, pinned by hash)
+        shell: bash
+        run: tools/ci/fetch.sh https://github.com/ccache/ccache/releases/download/v4.14.2/ccache-4.14.2-windows-x86_64.zip 6993ce645e53192cec592ee23186200b574ac4c59097ecde8d9cfd681b47ae84
+      - name: ccache (unpacked, standing in for cl.exe)
+        shell: pwsh
+        run: |
+          $zip = '.deps\6993ce645e53192cec592ee23186200b574ac4c59097ecde8d9cfd681b47ae84-ccache-4.14.2-windows-x86_64.zip'
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          $dir = "$env:RUNNER_TEMP\ccache-4.14.2-windows-x86_64"
+          "$dir" >> $env:GITHUB_PATH
+          $cl = "$env:RUNNER_TEMP\ccache-as-cl"
+          New-Item -ItemType Directory $cl | Out-Null
+          Copy-Item "$dir\ccache.exe" "$cl\cl.exe"
+          "SF_CCACHE_CL=$($cl -replace '\\', '/')" >> $env:GITHUB_ENV
+      - name: Compiler cache (restore; own branch first, then main's CI Windows cache)
+        uses: actions/cache/restore@v5
+        with:
+          path: .ccache
+          key: ccache-portable.${{ github.sha }}
+          restore-keys: |
+            ccache-portable.
+            ccache-ci-windows.
       - name: Build
         run: |
-          cmake -S . -B build -DSCULPTFORGE_USE_SYSTEM_SDL=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSCULPTFORGE_USE_SYSTEM_SDL=OFF -DSCULPTFORGE_BUILD_TESTS=OFF -DCMAKE_VS_GLOBALS="CLToolExe=cl.exe;CLToolPath=${{ env.SF_CCACHE_CL }};TrackFileAccess=false;UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true"
           cmake --build build --config Release --parallel 4
+      - name: Compiler cache (save)
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: .ccache
+          key: ccache-portable.${{ github.sha }}
       - name: Package
         run: cd build && cpack -C Release -G ZIP
       - uses: actions/upload-artifact@v7
