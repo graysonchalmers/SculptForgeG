@@ -36,3 +36,14 @@ Verbs: `run <cli command>`, `click "<label>"`, `stroke`, `key`, `wait_for`, `sho
 - Live mode is a consent gate on purpose. Do not try to bypass it; use the CLI or `--ui-test` instead.
 - Welcome and tuning pop-ups can intercept the first click of a scripted launch; start the script with
   the same `run` lines the tests use, or use the build that removes them.
+
+## Painting a whole material (colour + roughness + metallic) headlessly
+
+`paint_fill` only writes colour. To lay down PBR channels over a whole Part, use `fill_layer`
+(core/LayerStack.cpp; tests in tests/test_fill_layers.cpp):
+
+```
+sculptforge-cli -c "new_sphere; texture_channels enable=roughness,metallic; fill_layer color=#808080 roughness=0.2 metallic=1; paint_layer_list"
+```
+
+`paint_layer_merge` keeps each channel when layers merge (tests/test_paint_layers.cpp).
