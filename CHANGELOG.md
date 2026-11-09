@@ -6,6 +6,9 @@ All notable changes to SculptForge are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed (SculptForgeG)
+- Quiet start: no first-run Welcome, What's New, new-look card, membership cards or big-mesh tip at launch. Help > Welcome still opens the welcome.
+
 ## [0.12.0] - 2026-11-08
 
 ### Added

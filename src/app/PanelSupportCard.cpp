@@ -122,6 +122,7 @@ bool App::supportCardOpen() const { return supportCard_ && !supportCard_->closin
 
 
 void App::launchSupportCard(bool firstRun, int64_t now, bool testMode) {
+    if (!supportCardTestMode()) return; // SculptForgeG: quiet start, no membership card at launch (UI tests keep it)
     // A studio build is a Studio member's: no membership card in it (core/StudioProfile.h).
     const SupportCardReason reason =
         isStudioBuild() ? SupportCardReason::None : supportCardDue(supportCardPrefs_, firstRun, testMode);
@@ -549,6 +550,7 @@ void App::drawSupportPrefs() {
 int64_t App::memberClock() const { return int64_t(std::time(nullptr)) + memberClockOffset_; }
 
 void App::memberMoment(MemberMoment m) {
+    if (!supportCardTestMode()) return; // SculptForgeG: quiet start, no membership cards
     const bool testMode = supportCardTestMode() && !memberCardTestMode_;
     if (m == MemberMoment::None || memberCard_ != MemberMoment::None || memberVerifying_) return;
     if (studioMembership() || !memberMomentAllowed(supportCardPrefs_, memberSignedIn(), memberClock(), testMode, m)) return;
