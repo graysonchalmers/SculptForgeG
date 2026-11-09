@@ -646,6 +646,7 @@ constexpr Entry kSimplifiedChinese[] = {
     {"Blender", "Blender"},
     {"Maya", "Maya"},
     {"SculptForge", "SculptForge"},
+    {"SculptForgeG", "SculptForgeG"},
     {"Emulate Numpad", "模拟数字键盘"},
     {"Right click opens the Quick Menu", "按鼠标右键打开快速菜单"},
     {"Hold Space and drag to move the camera", "按住空格键并拖动以移动相机"},

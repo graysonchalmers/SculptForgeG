@@ -3211,7 +3211,7 @@ void App::drawUi() {
             ImGui::BeginGroup();
             // SculptForgeG (fork): our own stamp, then the upstream version it is based on. (The emoji is in the window
             // title; ImGui's fonts here don't carry colour emoji.)
-            ImGui::TextColored(theme::brand, "SculptForgeG");
+            ImGui::TextColored(theme::brand, "%s", tr("SculptForgeG"));
             ImGui::SameLine(0.0f, 6.0f * uiScale_);
             ImGui::TextDisabled("%s", SFG_STAMP_CODEWORD " \xC2\xB7 " SFG_STAMP_SHA " \xC2\xB7 " SFG_STAMP_DATE);
             ImGui::TextDisabled("%s", "based on " SFG_BASED_ON);

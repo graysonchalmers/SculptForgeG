@@ -779,6 +779,7 @@ constexpr Entry kSpanish[] = {
     {"Blender", "Blender"},
     {"Maya", "Maya"},
     {"SculptForge", "SculptForge"},
+    {"SculptForgeG", "SculptForgeG"},
     {"Emulate Numpad", "Emular teclado numérico"},
     {"Right click opens the Quick Menu", "El clic derecho abre el menú rápido"},
     {"Hold Space and drag to move the camera", "Mantén Espacio y arrastra para mover la cámara"},
