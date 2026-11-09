@@ -106,7 +106,7 @@ void App::initProject() {
         autosaveMinutes_ = std::clamp(int(prefs["autosave_minutes"].asNumber(autosaveMinutes_)), 0, 120);
         // Updated since the last start (a new install has no prefs yet and gets the Library instead).
         const std::string lastSeen = prefs["last_seen_version"].isString() ? prefs["last_seen_version"].asString() : "";
-        showWhatsNew_ = lastSeen != SCULPTFORGE_VERSION;
+        showWhatsNew_ = false; // SculptForgeG: quiet start, no What's New popup (the version is still recorded)
         // (the membership card's update moment: a newer version than the last start's)
         updatedThisStart_ = !lastSeen.empty() && compareVersions(SCULPTFORGE_VERSION, lastSeen) > 0;
         checkUpdates_ = prefs["check_updates"].asBool(checkUpdates_);
@@ -174,9 +174,10 @@ void App::initProject() {
             lookDirty_ = true;
         }
         const bool onNewLook = uiPrefs_.look.look == int(looks::LookId::ForgeTerminal) && uiPrefs_.shellLayout == 1;
-        newLookCard_ = !newLookCardDone_ && !onNewLook && !uiConfigDeterministic_;
+        newLookCard_ = false; // SculptForgeG: quiet start
+        (void)onNewLook;
     } else {
-        showWelcome_ = options_.uiTest.empty() && options_.demo.empty() && !options_.benchmark; // the first start: no prefs yet
+        showWelcome_ = false; // SculptForgeG: quiet start, no first-run welcome (Help > Welcome still opens it)
         startInputStyle_ = uiPrefs_.inputStyle; // a new install: SculptForge's keys until the welcome's choice
         newLookCardDone_ = true; // a new install starts in the new look (or ui.json's): nothing to announce
     }
@@ -297,6 +298,7 @@ void App::rememberRecent(const std::string& path) {
 }
 
 void App::tickBigMeshTip() {
+    if (options_.uiTest.empty()) return; // SculptForgeG: quiet start, no big-mesh tip popup (UI tests keep it)
     // Not in renders, recordings, demos or benchmarks; UI tests (a demo script) only when they set the threshold
     // (tests/ui/big_mesh_tip.sfui), so it never sits over another test's clicks.
     const char* testThreshold = std::getenv("SF_BIG_MESH_TIP_TRIANGLES");
@@ -938,7 +940,7 @@ void App::pollUpdateCheck() {
     }
     updateStatus_ = "SculptForge " + u.version + " is available";
     // An automatic check stays quiet about a version the user chose to skip; asking again shows it.
-    if (job->manual || u.version != updateSkipped_) updateAvailable_ = u;
+    if (job->manual) updateAvailable_ = u; // SculptForgeG: quiet start, automatic checks show no banner
     if (job->manual) status_ = updateStatus_;
 }
 

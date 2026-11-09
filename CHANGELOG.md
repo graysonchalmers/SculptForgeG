@@ -6,6 +6,8 @@ All notable changes to SculptForge are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed (SculptForgeG)
+- Quiet start: no first-run Welcome, hardware card, update banner, What's New, new-look card, membership cards or big-mesh tip at launch. Help > Welcome still opens the welcome.
 ### Changed
 - **Merge Down / Merge Visible keep each Part's paint layers**: a merged texture gets one layer per source layer
   ("Dirt from Boots"), painted only inside that Part's islands, with the layer's opacity, blend mode and visibility.
