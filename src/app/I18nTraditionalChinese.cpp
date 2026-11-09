@@ -3147,9 +3147,10 @@ constexpr Entry kTraditionalChinese[] = {
      "以螢幕像素表示的筆刷半徑（0.5 到 800），以及游標下表面上的 mm。[ 與 ] 每次調整 10%, Shift+[ 與 Shift+] 每次 1 "
      "px，Ctrl+Shift+右鍵拖曳可細微調整；按住 Ctrl 並按一下即可輸入。"},
     {"Triangles you can see and sculpt (visible Parts, hidden parts left out) and in the whole scene. Micro: the "
-     "micro triangles of the visible Parts' micro levels (Geometry > Micro).",
+     "micro triangles of the visible Parts' micro levels (Geometry > Micro). Counts turn amber from 500k and red from "
+     "1.5M triangles.",
      "可見且可雕刻的三角面數（可見部件，不含隱藏部分）以及整個場景的三角面數。微細分：可見部件微細分層級中的微三角面"
-     "（幾何 > 微細分）。"},
+     "（幾何 > 微細分）。數量從 50 萬起變為琥珀色，從 150 萬起變為紅色。"},
     {"Ctrl held: the mask brush (Ctrl+Shift: the selection brush). Click, or press B with Ctrl held, to pick Mask "
      "Pen, Lasso Mask or Rectangle Mask (Select Rectangle or Select Lasso).",
      "按住 Ctrl：遮罩筆刷（Ctrl+Shift：選取筆刷）。按一下，或按住 Ctrl 再按 B，即可選擇 Mask Pen、Lasso Mask 或 "

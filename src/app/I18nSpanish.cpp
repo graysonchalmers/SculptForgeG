@@ -3566,9 +3566,10 @@ constexpr Entry kSpanish[] = {
      "cambian un 10%, Mayús+[ y Mayús+] 1 px, Ctrl+Mayús+arrastrar con el derecho lo ajusta fino; Ctrl+clic para "
      "escribir."},
     {"Triangles you can see and sculpt (visible Parts, hidden parts left out) and in the whole scene. Micro: the "
-     "micro triangles of the visible Parts' micro levels (Geometry > Micro).",
+     "micro triangles of the visible Parts' micro levels (Geometry > Micro). Counts turn amber from 500k and red from "
+     "1.5M triangles.",
      "Triángulos que puedes ver y esculpir (Piezas visibles, sin las partes ocultas) y en toda la escena. Micro: los "
-     "microtriángulos de los niveles micro de las Piezas visibles (Geometría > Micro)."},
+     "microtriángulos de los niveles micro de las Piezas visibles (Geometría > Micro). Los contadores se ponen ámbar desde 500k y rojos desde 1,5M de triángulos."},
     {"Ctrl held: the mask brush (Ctrl+Shift: the selection brush). Click, or press B with Ctrl held, to pick Mask "
      "Pen, Lasso Mask or Rectangle Mask (Select Rectangle or Select Lasso).",
      "Con Ctrl pulsado: el pincel de máscara (Ctrl+Mayús: el de selección). Haz clic, o pulsa B con Ctrl pulsado, "
