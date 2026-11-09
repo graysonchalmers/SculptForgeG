@@ -155,6 +155,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { name: Linux x86_64, key: linux-x86_64, shard: 1, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
+          - { name: Linux x86_64, key: linux-x86_64, shard: 2, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
+          - { name: Linux ARM64, key: linux-arm64, shard: 1, shards: 2, os: "${{ vars.SF_RUNNER_LINUX_ARM || 'ubuntu-24.04-arm' }}" }
+          - { name: Linux ARM64, key: linux-arm64, shard: 2, shards: 2, os: "${{ vars.SF_RUNNER_LINUX_ARM || 'ubuntu-24.04-arm' }}" }
+          - { name: macOS, key: macos, shard: 1, shards: 1, os: "${{ vars.SF_RUNNER_MAC || 'macos-15' }}" }
           - { name: Windows, key: windows, shard: 1, shards: 4, os: "${{ vars.SF_RUNNER_WIN || 'windows-2022' }}" }
           - { name: Windows, key: windows, shard: 2, shards: 4, os: "${{ vars.SF_RUNNER_WIN || 'windows-2022' }}" }
           - { name: Windows, key: windows, shard: 3, shards: 4, os: "${{ vars.SF_RUNNER_WIN || 'windows-2022' }}" }
