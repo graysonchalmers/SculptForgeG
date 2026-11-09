@@ -274,6 +274,68 @@ TEST(texture_transfer_merge_keeps_both_textures) {
     CHECK(plainError < 0.01f);
 }
 
+TEST(texture_transfer_merge_keeps_each_parts_layers) {
+    // Part 1 and part 2 each carry a paint layer; the merge keeps both as their own layers on the merged texture.
+    Document doc = paintedSphere(3, 1024, 512);
+    {
+        PaintTexture& t = mutableTexture(doc.mesh);
+        const int layer = addTextureLayer(t, "Dirt");
+        t.layers[size_t(layer)].opacity = 0.6f;
+        paintPattern(doc.mesh, t.layers[size_t(layer)].rgba, 180, 0.7f);
+        compositeTextureAll(t);
+    }
+    Mesh second = makeIcosphere(3, 0.5f);
+    for (auto& p : second.positions) p += glm::vec3(2.0f, 0.0f, 0.0f);
+    second.recomputeAllNormals();
+    {
+        AutoUvResult uv;
+        std::string err;
+        CHECK(computeAutoUv(second.positions, second.triangles, 512, uv, err));
+        second.uvs = uv.uvs;
+        second.texture = makeTexture(1024, 1024);
+        second.paintToTexture = true;
+        paintPattern(second, second.texture->pixels, 255);
+        const int layer = addTextureLayer(*second.texture, "Rust");
+        paintPattern(second, second.texture->layers[size_t(layer)].rgba, 200, 1.3f);
+        compositeTextureAll(*second.texture);
+    }
+    const Mesh firstCopy = doc.mesh, secondCopy = second;
+    const size_t firstTris = firstCopy.triangleCount();
+    doc.addPart(second, "Second", false);
+    CommandRegistry reg;
+    const CommandResult r = reg.execute(doc, "part_merge_visible", {});
+    CHECK(r.ok);
+    CHECK(r.message.find("2 layers") != std::string::npos);
+    CHECK(doc.partCount() == 1);
+    const PaintTexture& t = *doc.mesh.texture;
+    CHECK(t.layers.size() == 2);
+    CHECK(t.layers[0].name.find("Dirt from") == 0);
+    CHECK(t.layers[1].name.find("Rust from Second") == 0);
+    CHECK(t.layers[0].opacity == 0.6f);
+    // The flattened merge matches each part's own composite; each layer is empty on the other part's triangles.
+    std::vector<float> e;
+    size_t strayAlpha = 0;
+    for (const auto& s : randomPoints(doc.mesh, 4000, 9)) {
+        const glm::vec3 p = pointOf(doc.mesh, s);
+        const bool inFirst = s.tri < firstTris;
+        const Mesh& src = inFirst ? firstCopy : secondCopy;
+        e.push_back(maxDiff(sampleTextureAt(doc.mesh, s.tri, p), sampleTextureAt(src, inFirst ? s.tri : s.tri - uint32_t(firstTris), p)));
+        const glm::uvec3 tv = doc.mesh.triangles[s.tri];
+        (void)tv;
+        const glm::vec2 uv = doc.mesh.uvs[size_t(s.tri) * 3] * s.bary.x + doc.mesh.uvs[size_t(s.tri) * 3 + 1] * s.bary.y +
+                             doc.mesh.uvs[size_t(s.tri) * 3 + 2] * s.bary.z;
+        const int x = std::clamp(int(uv.x * float(t.width)), 0, t.width - 1), y = std::clamp(int(uv.y * float(t.height)), 0, t.height - 1);
+        const size_t other = inFirst ? 1 : 0;
+        if (t.layers[other].rgba[(size_t(y) * size_t(t.width) + size_t(x)) * 4 + 3] > 8) ++strayAlpha;
+    }
+    const ErrorStats es = errorStats(e);
+    std::printf("  merged layers: flattened vs parts mean %.4f p99 %.4f, stray layer texels %zu (%s)\n", es.mean, es.p99, strayAlpha,
+                r.message.c_str());
+    CHECK(es.mean < 0.02f);
+    CHECK(es.p99 < 0.08f);
+    CHECK(strayAlpha == 0);
+}
+
 TEST(texture_transfer_pads_the_new_islands) {
     // Texels just outside the new islands carry the island's colour (no white seams once filtered).
     Document doc = paintedSphere(3, 1024, 512);

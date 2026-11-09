@@ -6,6 +6,11 @@ All notable changes to SculptForge are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Merge Down / Merge Visible keep each Part's paint layers**: a merged texture gets one layer per source layer
+  ("Dirt from Boots"), painted only inside that Part's islands, with the layer's opacity, blend mode and visibility.
+  The flattened result is the same as before; you can now hide or repaint one Part's paint on its own layer.
+
 ## [0.12.0] - 2026-11-08
 
 ### Added

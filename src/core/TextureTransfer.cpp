@@ -470,8 +470,118 @@ std::string carryTextureNote(const Mesh& source, Mesh& target, bool keep, const 
     return buf;
 }
 
+namespace {
+
+// Merging Parts whose textures have paint layers: the merged texture keeps every layer, one per source layer,
+// named "<layer> from <Part>". A layer only has paint inside its own Part's islands (transparent elsewhere), so
+// the flattened result equals the flat merge. Base is each Part's Base (a flat Part's pixels, white where a Part
+// has no texture).
+bool carryMergedLayered(const std::vector<const Mesh*>& parts, const std::vector<std::string>& names, Mesh& merged,
+                        const PaintTexture& biggest, bool toTexture, std::string& error, TextureTransferStats& st,
+                        const std::vector<uint32_t>& first, const Clock::time_point& t0) {
+    (void)error;
+    const size_t n = parts.size();
+    auto tex = makeTexture(biggest.width, biggest.height);
+    tex->base.assign(tex->texelCount() * 4, 255);
+    struct Dest {
+        size_t part, layer;
+    };
+    std::vector<Dest> dl; // destination layer d -> (part, its layer)
+    std::vector<bool> usable(n, false);
+    for (size_t i = 0; i < n; ++i) {
+        if (!hasTexture(*parts[i]) || !layersUsable(*parts[i]->texture)) continue;
+        usable[i] = true;
+        const PaintTexture& pt = *parts[i]->texture;
+        for (size_t l = 0; l < pt.layers.size(); ++l) {
+            const TextureLayer& sl = pt.layers[l];
+            TextureLayer c;
+            const std::string pn = i < names.size() && !names[i].empty() ? names[i] : "Part " + std::to_string(i + 1);
+            c.name = (sl.name.empty() ? std::string("Layer") : sl.name) + " from " + pn;
+            c.opacity = sl.opacity;
+            c.blend = sl.blend;
+            c.visible = sl.visible;
+            c.locked = sl.locked;
+            for (int ch = 0; ch < kChannelCount; ++ch) {
+                c.channels[size_t(ch)].enabled = sl.channels[size_t(ch)].enabled;
+                c.channels[size_t(ch)].blend = sl.channels[size_t(ch)].blend;
+                c.channels[size_t(ch)].opacity = sl.channels[size_t(ch)].opacity;
+            }
+            c.rgba.assign(tex->texelCount() * 4, 0);
+            tex->layers.push_back(std::move(c));
+            dl.push_back({i, l});
+        }
+    }
+    for (int c = 1; c < kChannelCount; ++c) {
+        bool any = false;
+        for (const Mesh* m : parts) any = any || (hasTexture(*m) && channelEnabled(*m->texture, Channel(c)));
+        if (any) setChannelEnabled(*tex, Channel(c), true);
+    }
+    syncLayerChannels(*tex);
+
+    std::vector<std::vector<uint8_t>*> dst{&tex->base};
+    for (auto& l : tex->layers) dst.push_back(&l.rgba);
+
+    // Parts without a texture read a 1x1 white Base and transparent layers.
+    auto blank = makeTexture(1, 1);
+    std::vector<uint8_t> white(4, 255), clear(4, 0);
+    std::vector<std::vector<glm::vec2>> blankUvs(n);
+    std::vector<std::vector<uint8_t>> zeros(n);
+    std::vector<Source> sources(n);
+    for (size_t i = 0; i < n; ++i) {
+        const bool tx = hasTexture(*parts[i]);
+        if (tx) {
+            sources[i].tex = parts[i]->texture.get();
+            sources[i].uvs = &parts[i]->uvs;
+            zeros[i].assign(parts[i]->texture->texelCount() * 4, 0);
+        } else {
+            sources[i].tex = blank.get();
+            blankUvs[i].assign(parts[i]->triangleCount() * 3, glm::vec2(0.5f));
+            sources[i].uvs = &blankUvs[i];
+        }
+        sources[i].planes.push_back(!tx ? &white : usable[i] ? &parts[i]->texture->base : &parts[i]->texture->pixels);
+        for (size_t d = 0; d < dl.size(); ++d)
+            sources[i].planes.push_back(!tx ? &clear : dl[d].part == i ? &parts[i]->texture->layers[dl[d].layer].rgba : &zeros[i]);
+    }
+    // blank is 1x1: its planes are 4 bytes, matching.
+    ChannelJobs chans;
+    for (int c = 1; c < kChannelCount; ++c) {
+        if (!channelEnabled(*tex, Channel(c))) continue;
+        chans.push_back(channelJob(tex->channels[size_t(c)].base, false, n));
+        for (size_t i = 0; i < n; ++i)
+            if (hasTexture(*parts[i]) && channelEnabled(*parts[i]->texture, Channel(c)))
+                chans.back().src[i] = usable[i] ? &parts[i]->texture->channels[size_t(c)].base : &channelImage(*parts[i]->texture, Channel(c));
+        for (size_t d = 0; d < dl.size(); ++d) {
+            const TileImage& img = parts[dl[d].part]->texture->layers[dl[d].layer].channels[size_t(c)].image;
+            TileImage& out = tex->layers[d].channels[size_t(c)].image;
+            if (!img.valid() || !out.valid()) continue;
+            chans.push_back(channelJob(out, true, n));
+            chans.back().src[dl[d].part] = &img;
+        }
+    }
+    std::vector<uint8_t> ring;
+    size_t missed = 0;
+    st.texels = fillPlanes(dst, tex->width, tex->height, merged.uvs, merged.triangleCount(), sources, ring, missed, chans,
+                           [&](uint32_t t, const glm::vec3& b, uint32_t& s, uint32_t& lt, glm::vec3& sb) {
+                               s = uint32_t(std::upper_bound(first.begin(), first.end(), t) - first.begin()) - 1;
+                               lt = t - first[s];
+                               sb = b;
+                               return true;
+                           });
+    st.missed = missed;
+    padPlanes(dst, tex->width, tex->height, ring, kTransferPadding, chans);
+    finish(*tex, chans);
+    st.layers = int(tex->layers.size());
+    merged.texture = std::move(tex);
+    merged.paintToTexture = toTexture;
+    merged.facesDirty = true;
+    st.transferSeconds = secondsSince(t0);
+    return true;
+}
+
+} // namespace
+
 bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, std::string& error,
-                         TextureTransferStats* stats) {
+                         TextureTransferStats* stats, const std::vector<std::string>& names) {
     const PaintTexture* biggest = nullptr;
     bool toTexture = false;
     size_t total = 0;
@@ -495,12 +605,15 @@ bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, st
     st.charts = uv.charts;
     const auto t0 = Clock::now();
     merged.uvs = std::move(uv.uvs);
+    std::vector<uint32_t> first(parts.size() + 1, 0); // first merged triangle of each part
+    for (size_t i = 0; i < parts.size(); ++i) first[i + 1] = first[i] + uint32_t(parts[i]->triangleCount());
+    bool anyLayers = false;
+    for (const Mesh* m : parts) anyLayers = anyLayers || (hasTexture(*m) && layersUsable(*m->texture));
+    if (anyLayers) return carryMergedLayered(parts, names, merged, *biggest, toTexture, error, st, first, t0);
     auto tex = makeTexture(biggest->width, biggest->height);
     std::vector<std::vector<uint8_t>*> dst{&tex->pixels};
     std::vector<Source> sources(parts.size());
-    std::vector<uint32_t> first(parts.size() + 1, 0); // first merged triangle of each part
     for (size_t i = 0; i < parts.size(); ++i) {
-        first[i + 1] = first[i] + uint32_t(parts[i]->triangleCount());
         if (!hasTexture(*parts[i])) continue;
         sources[i].tex = parts[i]->texture.get();
         sources[i].uvs = &parts[i]->uvs;
@@ -537,7 +650,8 @@ bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, st
     return true;
 }
 
-std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep) {
+std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep,
+                                    const std::vector<std::string>& names) {
     size_t textured = 0;
     for (const Mesh* m : parts) textured += hasTexture(*m) ? 1 : 0;
     if (!textured) return {};
@@ -549,14 +663,18 @@ std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh&
     }
     std::string err;
     TextureTransferStats st;
-    if (!carryMergedTextures(parts, merged, err, &st)) {
+    if (!carryMergedTextures(parts, merged, err, &st, names)) {
         merged.texture.reset();
         merged.paintToTexture = false;
         return "; the " + what + " could not be kept (" + err + ")";
     }
-    char buf[160];
-    std::snprintf(buf, sizeof buf, "; %s kept in one texture (Auto UV, %d islands, %.1f s)", what.c_str(), st.charts,
-                  st.uvSeconds + st.transferSeconds);
+    char buf[240];
+    if (st.layers)
+        std::snprintf(buf, sizeof buf, "; %s kept in one texture with %d layer%s, one per source layer (Auto UV, %d islands, %.1f s)",
+                      what.c_str(), st.layers, st.layers > 1 ? "s" : "", st.charts, st.uvSeconds + st.transferSeconds);
+    else
+        std::snprintf(buf, sizeof buf, "; %s kept in one texture (Auto UV, %d islands, %.1f s)", what.c_str(), st.charts,
+                      st.uvSeconds + st.transferSeconds);
     return buf;
 }
 
