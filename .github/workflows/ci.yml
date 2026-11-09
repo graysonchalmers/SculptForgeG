@@ -149,14 +149,13 @@ jobs:
   build:
     name: ${{ matrix.name }} (${{ matrix.shard }}/${{ matrix.shards }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # SculptForgeG fast lane: pull requests skip the platform matrix (the Windows zip build, windows-portable.yml, is the
+    # dev build). It runs on main, a manual full run, or a PR labelled full-ci.
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # SculptForgeG fast lane: pull requests build Linux x86_64 only; every other platform runs on main, a manual
-        # full run, or a PR labelled full-ci (needs.changes.outputs.full).
-        exclude: ${{ fromJSON(needs.changes.outputs.full == 'true' && '[]' || '[{"key":"linux-arm64"},{"key":"macos"},{"key":"windows"}]') }}
         include:
           - { name: Linux x86_64, key: linux-x86_64, shard: 1, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
           - { name: Linux x86_64, key: linux-x86_64, shard: 2, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
