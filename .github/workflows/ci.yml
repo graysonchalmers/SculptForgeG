@@ -154,6 +154,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # SculptForgeG fast lane: pull requests build Linux x86_64 only; every other platform runs on main, a manual
+        # full run, or a PR labelled full-ci (needs.changes.outputs.full).
+        exclude: ${{ fromJSON(needs.changes.outputs.full == 'true' && '[]' || '[{"key":"linux-arm64"},{"key":"macos"},{"key":"windows"}]') }}
         include:
           - { name: Linux x86_64, key: linux-x86_64, shard: 1, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
           - { name: Linux x86_64, key: linux-x86_64, shard: 2, shards: 2, os: "${{ vars.SF_RUNNER_LINUX || 'ubuntu-24.04' }}" }
@@ -444,7 +447,7 @@ jobs:
   oldest-linux:
     name: Oldest Linux headers (Ubuntu 22.04, SDL)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true' # (SculptForgeG fast lane)
     runs-on: ${{ vars.SF_RUNNER_LINUX_OLD || 'ubuntu-22.04' }}
     env:
       SF_DEPS_CACHE: .deps
