@@ -274,6 +274,56 @@ TEST(texture_transfer_merge_keeps_both_textures) {
     CHECK(plainError < 0.01f);
 }
 
+TEST(texture_transfer_merge_keeps_each_parts_paint_layers) {
+    Document doc = paintedSphere(3, 1024, 512);
+    PaintTexture& t = mutableTexture(doc.mesh);
+    const int layer = addTextureLayer(t, "Dirt");
+    t.layers[size_t(layer)].opacity = 0.5f;
+    t.layers[size_t(layer)].blend = BlendMode::Multiply;
+    paintPattern(doc.mesh, t.layers[size_t(layer)].rgba, 200, 0.7f);
+    compositeTextureAll(t);
+    doc.parts[size_t(doc.activePart)].name = "Alpha";
+    const auto pts = randomPoints(doc.mesh, 3000, 5);
+    std::vector<glm::vec3> was;
+    for (const auto& s : pts) was.push_back(sampleTextureAt(doc.mesh, s.tri, pointOf(doc.mesh, s)));
+
+    Mesh second = makeIcosphere(3, 0.5f);
+    for (auto& p : second.positions) p += glm::vec3(2.0f, 0.0f, 0.0f);
+    second.recomputeAllNormals();
+    {
+        AutoUvResult uv;
+        std::string err;
+        CHECK(computeAutoUv(second.positions, second.triangles, 512, uv, err));
+        second.uvs = uv.uvs;
+        second.texture = makeTexture(1024, 1024);
+        second.paintToTexture = true;
+        paintPattern(second, second.texture->pixels, 255);
+        const int l2 = addTextureLayer(*second.texture, "Glow");
+        second.texture->layers[size_t(l2)].blend = BlendMode::Screen;
+        paintPattern(second, second.texture->layers[size_t(l2)].rgba, 255, 0.3f);
+        compositeTextureAll(*second.texture);
+    }
+    doc.addPart(second, "Beta", false);
+    CommandRegistry reg;
+    const CommandResult r = reg.execute(doc, "part_merge_visible", {});
+    CHECK(r.ok);
+    CHECK(r.message.find("2 paint layers kept") != std::string::npos);
+    const PaintTexture& n = *doc.mesh.texture;
+    CHECK(n.layers.size() == 2);
+    CHECK(n.layers[0].name == "Dirt from Alpha");
+    CHECK(n.layers[0].blend == BlendMode::Multiply && n.layers[0].opacity == 0.5f);
+    CHECK(n.layers[1].name == "Glow from Beta" && n.layers[1].blend == BlendMode::Screen);
+    CHECK(n.base.size() == n.pixels.size());
+    // The merged mesh starts with Alpha's triangles in order, so the same points read the same flattened colour.
+    std::vector<float> e;
+    for (size_t i = 0; i < pts.size(); ++i)
+        e.push_back(maxDiff(sampleTextureAt(doc.mesh, pts[i].tri, pointOf(doc.mesh, pts[i])), was[i]));
+    const ErrorStats s = errorStats(e);
+    std::printf("  merged layers: flattened error mean %.4f p99 %.4f\n", s.mean, s.p99);
+    CHECK(s.mean < 0.015f);
+    CHECK(s.p99 < 0.08f);
+}
+
 TEST(texture_transfer_pads_the_new_islands) {
     // Texels just outside the new islands carry the island's colour (no white seams once filtered).
     Document doc = paintedSphere(3, 1024, 512);

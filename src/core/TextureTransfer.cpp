@@ -471,7 +471,7 @@ std::string carryTextureNote(const Mesh& source, Mesh& target, bool keep, const 
 }
 
 bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, std::string& error,
-                         TextureTransferStats* stats) {
+                         TextureTransferStats* stats, const std::vector<std::string>& names) {
     const PaintTexture* biggest = nullptr;
     bool toTexture = false;
     size_t total = 0;
@@ -504,7 +504,9 @@ bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, st
         if (!hasTexture(*parts[i])) continue;
         sources[i].tex = parts[i]->texture.get();
         sources[i].uvs = &parts[i]->uvs;
-        sources[i].planes = {&parts[i]->texture->pixels};
+        // A part with paint layers contributes its Base here and each layer below, so the stack composites back
+        // to the same colours (a flattened copy here would apply blend modes twice).
+        sources[i].planes = {layersUsable(*parts[i]->texture) ? &parts[i]->texture->base : &parts[i]->texture->pixels};
     }
     // Material channels: every channel any part has; parts without it read its default.
     ChannelJobs chans;
@@ -529,6 +531,42 @@ bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, st
                            });
     st.missed = missed;
     padPlanes(dst, tex->width, tex->height, ring, kTransferPadding, chans);
+    // Each part's paint layers come along as layers of their own ("<layer> from <Part>"), transparent outside
+    // that part's islands, with the same blend mode, opacity and order, so they can still be toggled and repainted.
+    for (size_t i = 0; i < parts.size(); ++i) {
+        if (!hasTexture(*parts[i]) || !layersUsable(*parts[i]->texture)) continue;
+        const std::string from = i < names.size() && !names[i].empty() ? names[i] : "Part " + std::to_string(i + 1);
+        for (const TextureLayer& src : parts[i]->texture->layers) {
+            TextureLayer nl;
+            nl.name = (src.name.empty() ? std::string("Layer") : src.name) + " from " + from;
+            nl.opacity = src.opacity;
+            nl.blend = src.blend;
+            nl.visible = src.visible;
+            nl.rgba.assign(tex->texelCount() * 4, 0);
+            std::vector<Source> one(parts.size());
+            one[i].tex = parts[i]->texture.get();
+            one[i].uvs = &parts[i]->uvs;
+            one[i].planes = {&src.rgba};
+            std::vector<std::vector<uint8_t>*> lp{&nl.rgba};
+            ChannelJobs none;
+            std::vector<uint8_t> lring;
+            size_t lmissed = 0;
+            fillPlanes(lp, tex->width, tex->height, merged.uvs, merged.triangleCount(), one, lring, lmissed, none,
+                       [&](uint32_t t, const glm::vec3& b, uint32_t& s, uint32_t& lt, glm::vec3& sb) {
+                           s = uint32_t(std::upper_bound(first.begin(), first.end(), t) - first.begin()) - 1;
+                           if (s != uint32_t(i)) return false;
+                           lt = t - first[s];
+                           sb = b;
+                           return true;
+                       });
+            padPlanes(lp, tex->width, tex->height, lring, kTransferPadding, none);
+            tex->layers.push_back(std::move(nl));
+        }
+    }
+    if (!tex->layers.empty()) {
+        if (tex->base.size() != tex->pixels.size()) tex->base = tex->pixels; // Base = the merged parts' Bases
+        syncLayerChannels(*tex);
+    }
     finish(*tex, chans);
     merged.texture = std::move(tex);
     merged.paintToTexture = toTexture;
@@ -537,7 +575,8 @@ bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, st
     return true;
 }
 
-std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep) {
+std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep,
+                                    const std::vector<std::string>& names) {
     size_t textured = 0;
     for (const Mesh* m : parts) textured += hasTexture(*m) ? 1 : 0;
     if (!textured) return {};
@@ -549,7 +588,7 @@ std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh&
     }
     std::string err;
     TextureTransferStats st;
-    if (!carryMergedTextures(parts, merged, err, &st)) {
+    if (!carryMergedTextures(parts, merged, err, &st, names)) {
         merged.texture.reset();
         merged.paintToTexture = false;
         return "; the " + what + " could not be kept (" + err + ")";
@@ -557,7 +596,11 @@ std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh&
     char buf[160];
     std::snprintf(buf, sizeof buf, "; %s kept in one texture (Auto UV, %d islands, %.1f s)", what.c_str(), st.charts,
                   st.uvSeconds + st.transferSeconds);
-    return buf;
+    std::string note = buf;
+    if (merged.texture && !merged.texture->layers.empty())
+        note += "; " + std::to_string(merged.texture->layers.size()) + " paint layer" +
+                (merged.texture->layers.size() > 1 ? "s" : "") + " kept";
+    return note;
 }
 
 } // namespace sf

@@ -60,10 +60,13 @@ bool carryTexture(const Mesh& source, Mesh& target, std::string& error, TextureT
 std::string carryTextureNote(const Mesh& source, Mesh& target, bool keep, const AutoUvProgress& progress = {});
 
 // After mergeMeshes(parts) into `merged` (same triangles, in order): Auto UVs for `merged` and one texture
-// holding each textured part's paint (composited). Does nothing (true) when no part has a texture.
+// holding each textured part's paint: the parts' Bases as the Base, and each part's paint layers as layers of their
+// own named "<layer> from <names[i]>" (same blend mode, opacity and order), transparent outside that part.
+// Does nothing (true) when no part has a texture.
 bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, std::string& error,
-                         TextureTransferStats* stats = nullptr);
+                         TextureTransferStats* stats = nullptr, const std::vector<std::string>& names = {});
 // The same as status text (", textures kept: ..." or that they were dropped); empty when no part has a texture.
-std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep);
+std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep,
+                                    const std::vector<std::string>& names = {});
 
 } // namespace sf
