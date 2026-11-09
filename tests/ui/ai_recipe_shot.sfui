@@ -1,0 +1,5 @@
+# Recipe for AI agents (docs/ai-control.md): build a scene by command, open a panel, take a shot.
+run new_sphere subdivisions=3
+run part_append type=cube
+shot ai-recipe-parts
+expect_value http_requests == 0
