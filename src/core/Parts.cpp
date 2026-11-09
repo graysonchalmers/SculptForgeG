@@ -988,7 +988,8 @@ void registerPartCommands(CommandRegistry& reg) {
                  const Mesh& a0 = partPlacedMesh(doc, i, placedA);
                  const Mesh& b0 = partPlacedMesh(doc, i + 1, placedB);
                  Mesh merged = mergeMeshes({&a0, &b0});
-                 const std::string texture = carryMergedTexturesNote({&a0, &b0}, merged, argBool(a, "keep_texture", true));
+                 const std::string texture = carryMergedTexturesNote({&a0, &b0}, merged, argBool(a, "keep_texture", true),
+                                                                    {doc.parts[size_t(i)].name, doc.parts[size_t(i + 1)].name});
                  for (int k : {i, i + 1}) notePartLevelsDropped(doc, k); // merged at their current levels
                  const std::string name = doc.parts[size_t(i)].name, below = doc.parts[size_t(i + 1)].name;
                  doc.removePart(i + 1);
@@ -1008,11 +1009,15 @@ void registerPartCommands(CommandRegistry& reg) {
                  if (visible.size() < 2) return {false, "Show at least two Parts to merge"};
                  Mesh merged = mergedVisibleMesh(doc);
                  std::vector<const Mesh*> parts; // as mergedVisibleMesh gathers them
+                 std::vector<std::string> partNames;
                  std::deque<Mesh> placed;
                  for (int i : visible)
-                     if (doc.partMesh(i).triangleCount()) parts.push_back(&partPlacedMesh(doc, i, placed.emplace_back()));
-                 const std::string texture =
-                     parts.size() > 1 ? carryMergedTexturesNote(parts, merged, argBool(a, "keep_texture", true)) : std::string();
+                     if (doc.partMesh(i).triangleCount()) {
+                         parts.push_back(&partPlacedMesh(doc, i, placed.emplace_back()));
+                         partNames.push_back(doc.parts[size_t(i)].name);
+                     }
+                 const std::string texture = parts.size() > 1 ? carryMergedTexturesNote(parts, merged, argBool(a, "keep_texture", true), partNames)
+                                                              : std::string();
                  for (int k : visible) notePartLevelsDropped(doc, k); // merged at their current levels
                  const size_t tris = merged.triangleCount();
                  const int at = visible.front();
