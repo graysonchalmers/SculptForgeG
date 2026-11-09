@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       full:
-        description: Also the VFX Reference Platform and Blender add-on jobs (main always runs them)
+        description: Also the VFX Reference Platform and Blender add-on jobs (SculptForgeG: never automatic; manual run or full-ci label only)
         type: boolean
         default: false
 
@@ -66,7 +66,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-          FULL: ${{ github.ref == 'refs/heads/main' || inputs.full == true || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+          FULL: ${{ inputs.full == true || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
         run: |
           echo "full=$FULL" | tee -a "$GITHUB_OUTPUT"
           base=$BASE
@@ -149,7 +149,9 @@ jobs:
   build:
     name: ${{ matrix.name }} (${{ matrix.shard }}/${{ matrix.shards }})
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # SculptForgeG fast lane: pull requests skip the platform matrix (the Windows zip build, windows-portable.yml, is the
+    # dev build). It runs on main, a manual full run, or a PR labelled full-ci.
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -444,7 +446,7 @@ jobs:
   oldest-linux:
     name: Oldest Linux headers (Ubuntu 22.04, SDL)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true' # (SculptForgeG fast lane)
     runs-on: ${{ vars.SF_RUNNER_LINUX_OLD || 'ubuntu-22.04' }}
     env:
       SF_DEPS_CACHE: .deps
