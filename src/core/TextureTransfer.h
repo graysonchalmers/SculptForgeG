@@ -9,7 +9,7 @@
 // - A new surface (voxel remesh, QRemesh): the result gets Auto UVs, and every texel takes the colour of the
 //   closest point of the old surface. Every layer is transferred too.
 // - Merged Parts: the merged mesh keeps each part's triangles in order, so each texel reads its part's
-//   texture exactly (layers are flattened, as the parts' stacks differ).
+//   texture exactly. Paint layers are kept: one merged layer per source layer, transparent outside its Part.
 //
 // Texels are filled triangle by triangle on all threads; then the texels around each UV island are padded
 // ring by ring from the island's edge (as baking does), so seams don't show. Texels no island reaches stay
@@ -32,6 +32,7 @@ struct TextureTransferStats {
     size_t texels = 0; // texels inside the new UV islands
     size_t missed = 0; // of those, texels that found no source (left blank, then padded)
     int charts = 0;    // UV islands made by Auto UV (0 when the UVs were given)
+    int layers = 0;    // paint layers in a merged texture (carryMergedTextures)
     double uvSeconds = 0, transferSeconds = 0;
 };
 
@@ -61,9 +62,12 @@ std::string carryTextureNote(const Mesh& source, Mesh& target, bool keep, const 
 
 // After mergeMeshes(parts) into `merged` (same triangles, in order): Auto UVs for `merged` and one texture
 // holding each textured part's paint (composited). Does nothing (true) when no part has a texture.
+// Parts with paint layers keep them: one merged layer per source layer, named "<layer> from <name>" (`names` are
+// the Parts' names, same order), painted only inside its Part's islands; the flattened result is unchanged.
 bool carryMergedTextures(const std::vector<const Mesh*>& parts, Mesh& merged, std::string& error,
-                         TextureTransferStats* stats = nullptr);
+                         TextureTransferStats* stats = nullptr, const std::vector<std::string>& names = {});
 // The same as status text (", textures kept: ..." or that they were dropped); empty when no part has a texture.
-std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep);
+std::string carryMergedTexturesNote(const std::vector<const Mesh*>& parts, Mesh& merged, bool keep,
+                                    const std::vector<std::string>& names = {});
 
 } // namespace sf
