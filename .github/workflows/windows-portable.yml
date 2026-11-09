@@ -1,0 +1,28 @@
+name: Windows portable (fork)
+
+# Fork-only: builds the Windows portable .zip on a GitHub runner so no local MSVC build is needed.
+on:
+  push:
+    branches: ['claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: |
+          cmake -S . -B build -DSCULPTFORGE_USE_SYSTEM_SDL=OFF
+          cmake --build build --config Release --parallel 4
+      - name: Package
+        run: cd build && cpack -C Release -G ZIP
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sculptforge-windows-portable
+          path: build/*.zip
+          retention-days: 14
