@@ -239,6 +239,39 @@ bool SliderInt(const char* id, int* v, int lo, int hi, const char* format, ImGui
 
 } // namespace tray
 
+// Per-section colour + icon for the Tool panel headers (fork patch): quick visual navigation.
+namespace {
+struct SectionMark { const char* id; unsigned rgb; const char* icon; };
+constexpr SectionMark kSectionMarks[] = {
+    {"tool.part", 0x5aa9e6, ICON_LC_BOXES},          {"tool.garments", 0x5aa9e6, ICON_LC_SHIRT},
+    {"tool.forgespheres", 0x5aa9e6, ICON_LC_ORBIT},  {"tool.tube", 0x5aa9e6, ICON_LC_SPLINE},
+    {"tool.geometry", 0x4fc3a1, ICON_LC_GRID_3X3},   {"tool.remesh", 0x4fc3a1, ICON_LC_SPARKLES},
+    {"tool.deformation", 0x4fc3a1, ICON_LC_WAVES},   {"tool.drape", 0x4fc3a1, ICON_LC_SHIRT},
+    {"tool.cut", 0xe5604a, ICON_LC_SCISSORS},        {"tool.layers", 0xb48ae8, ICON_LC_LAYERS},
+    {"tool.face", 0xb48ae8, ICON_LC_SMILE},          {"tool.masking", 0xe8c44a, ICON_LC_VENETIAN_MASK},
+    {"tool.facegroups", 0xe8c44a, ICON_LC_GROUP},    {"tool.visibility", 0xe8c44a, ICON_LC_EYE},
+    {"tool.selection_sets", 0xe8c44a, ICON_LC_SHAPES}, {"tool.paint_layers", 0xf0882e, ICON_LC_PAINT_BUCKET},
+    {"tool.texture", 0xf0882e, ICON_LC_IMAGE},       {"tool.bake", 0xf0882e, ICON_LC_FLAME},
+    {"tool.export", 0x8aa0b4, ICON_LC_DOWNLOAD},     {"tool.display", 0x8aa0b4, ICON_LC_SUN},
+    // Preferences: one family per kind of setting.
+    {"preferences.config", 0x8aa0b4, ICON_LC_SAVE},  {"preferences.interface", 0x5aa9e6, ICON_LC_SETTINGS},
+    {"preferences.input", 0xe8c44a, ICON_LC_MOUSE},  {"preferences.cursor", 0xe8c44a, ICON_LC_MOUSE_POINTER},
+    {"preferences.hints", 0x5aa9e6, ICON_LC_LIGHTBULB}, {"preferences.hotkeys", 0xe8c44a, ICON_LC_KEYBOARD},
+    {"preferences.display", 0x5aa9e6, ICON_LC_MONITOR}, {"preferences.library", 0xb48ae8, ICON_LC_LIBRARY},
+    {"preferences.tablet", 0xe8c44a, ICON_LC_TABLET}, {"preferences.performance", 0x4fc3a1, ICON_LC_ZAP},
+    {"preferences.ai", 0xb48ae8, ICON_LC_SPARKLES},  {"preferences.updates", 0x8aa0b4, ICON_LC_REFRESH_CW},
+    {"preferences.integrations", 0x8aa0b4, ICON_LC_PLUG}, {"preferences.support", 0xe5604a, ICON_LC_LIFE_BUOY},
+    {"preferences.autosave", 0x8aa0b4, ICON_LC_HISTORY},
+    // Brush palette sub-sections.
+    {"brush.cloth_options", 0x5aa9e6, ICON_LC_SHIRT}, {"brush.kelvinlet", 0x4fc3a1, ICON_LC_WAVES},
+    {"brush.vdm", 0xb48ae8, ICON_LC_BOXES},
+};
+const SectionMark* sectionMark(const char* id) {
+    for (const auto& m : kSectionMarks) if (std::string(id) == m.id) return &m;
+    return nullptr;
+}
+} // namespace
+
 bool App::subpalette(const char* id, const char* englishTitle) {
     const char* title = tr(englishTitle); // the interface language (I18n.h); the id keeps the item's identity
     auto& open = layout_.openSubpalettes;
@@ -287,7 +320,14 @@ bool App::subpalette(const char* id, const char* englishTitle) {
     dl->AddText(font, chevronSize, ImVec2(std::floor(p.x + w - h * 0.5f - cs.x * 0.5f), std::floor(p.y + (h - cs.y) * 0.5f)),
                 theme::u32(isOpen || hovered ? theme::text : theme::textDim, isOpen ? 0.9f : 1.0f), chevron);
     const float ty = std::floor(p.y + (h - ImGui::GetFontSize()) * 0.5f);
-    dl->AddText(ImVec2(p.x + kSectionInset * s, ty), theme::u32(theme::text, isOpen || hovered ? 1.0f : 0.78f), title);
+    float titleX = p.x + kSectionInset * s;
+    if (const SectionMark* m = sectionMark(id)) { // coloured left bar + tinted icon before the title
+        const ImVec4 c = theme::rgb(m->rgb);
+        dl->AddRectFilled(p, ImVec2(p.x + 3.0f * s, p.y + h), theme::u32(c, isOpen || hovered ? 1.0f : 0.75f));
+        dl->AddText(ImVec2(titleX, ty), theme::u32(c), m->icon);
+        titleX += ImGui::CalcTextSize(m->icon).x + 6.0f * s;
+    }
+    dl->AddText(ImVec2(titleX, ty), theme::u32(theme::text, isOpen || hovered ? 1.0f : 0.78f), title);
     ImGui::LogText("%s", title);
     ui::HelpText(title, nullptr,
                  "Click to open or close. Opening one closes the others (Shift+click keeps them open; Preferences > "

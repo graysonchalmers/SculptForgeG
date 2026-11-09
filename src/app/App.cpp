@@ -1,6 +1,7 @@
 // SculptForge - open source digital sculpting
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/App.h"
+#include "SfgStamp.h"
 #include "app/NativeDialog.h"
 #include "app/Pickers.h"
 #include "app/BrandMark.h"
@@ -180,7 +181,7 @@ bool App::init(const AppOptions& options) {
         SDL_SetWindowSize(window_, winW, winH);
         SDL_SyncWindow(window_);
     } else
-        window_ = SDL_CreateWindow("SculptForge", winW, winH, flags);
+        window_ = SDL_CreateWindow("SculptForgeG", winW, winH, flags);
     if (!window_) {
         startError_ = std::string("The OpenGL 3.3 window could not be made: ") + SDL_GetError();
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
@@ -3104,7 +3105,8 @@ void App::updateTitle() {
     updateDiscordPresence(); // the file name, if it's shown (sends only on a change)
     // "Head.sfproj* — SculptForge 0.11.13": the document first (taskbars and Alt-Tab cut the end off), the version
     // last, so support screenshots show it.
-    std::string title = name + (doc_.dirty() ? "*" : "") + " — SculptForge " + appShownVersion().text();
+    std::string title = name + (doc_.dirty() ? "*" : "") + " — SculptForgeG " + SFG_STAMP_EMOJI " " SFG_STAMP_CODEWORD " · " SFG_STAMP_SHA " · " SFG_STAMP_DATE +
+                        std::string(" (based on " SFG_BASED_ON ")");
     if (const StudioStart& studio = studioMode(); studio.active && !studio.profile.title.empty())
         title += " — " + studio.profile.title; // a studio build's own title
     if (title == windowTitle_) return; // called every frame
@@ -3207,7 +3209,12 @@ void App::drawUi() {
             ImGui::SameLine(0.0f, 12.0f * uiScale_);
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (64.0f * uiScale_ - 2.0f * ImGui::GetTextLineHeightWithSpacing()) * 0.5f);
             ImGui::BeginGroup();
-            ImGui::Text(tr("SculptForge %s"), appVersionLabel().c_str());
+            // SculptForgeG (fork): our own stamp, then the upstream version it is based on. (The emoji is in the window
+            // title; ImGui's fonts here don't carry colour emoji.)
+            ImGui::TextColored(theme::brand, "%s", tr("SculptForgeG"));
+            ImGui::SameLine(0.0f, 6.0f * uiScale_);
+            ImGui::TextDisabled("%s", SFG_STAMP_CODEWORD " \xC2\xB7 " SFG_STAMP_SHA " \xC2\xB7 " SFG_STAMP_DATE);
+            ImGui::TextDisabled("%s", "based on " SFG_BASED_ON);
             ImGui::TextUnformatted(tr("Free and open-source digital sculpting."));
             ImGui::EndGroup();
             ImGui::Spacing();

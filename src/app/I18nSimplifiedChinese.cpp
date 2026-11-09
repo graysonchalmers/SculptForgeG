@@ -646,6 +646,7 @@ constexpr Entry kSimplifiedChinese[] = {
     {"Blender", "Blender"},
     {"Maya", "Maya"},
     {"SculptForge", "SculptForge"},
+    {"SculptForgeG", "SculptForgeG"},
     {"Emulate Numpad", "模拟数字键盘"},
     {"Right click opens the Quick Menu", "按鼠标右键打开快速菜单"},
     {"Hold Space and drag to move the camera", "按住空格键并拖动以移动相机"},
@@ -3146,9 +3147,10 @@ constexpr Entry kSimplifiedChinese[] = {
      "以屏幕像素表示的笔刷半径（0.5 到 800），以及光标下表面上的 mm。[ 与 ] 每次调整 10%, Shift+[ 与 Shift+] 每次 1"
      " px，Ctrl+Shift+右键拖动可细微调整；按住 Ctrl 并单击即可输入。"},
     {"Triangles you can see and sculpt (visible Parts, hidden parts left out) and in the whole scene. Micro: the "
-     "micro triangles of the visible Parts' micro levels (Geometry > Micro).",
+     "micro triangles of the visible Parts' micro levels (Geometry > Micro). Counts turn amber from 500k and red from "
+     "1.5M triangles.",
      "可见且可雕刻的三角面数（可见部件，不含隐藏部分）以及整个场景的三角面数。微细分：可见部件微细分层级中的微三角面"
-     "（几何 > 微细分）。"},
+     "（几何 > 微细分）。数量从 50 万起变为琥珀色，从 150 万起变为红色。"},
     {"Ctrl held: the mask brush (Ctrl+Shift: the selection brush). Click, or press B with Ctrl held, to pick Mask "
      "Pen, Lasso Mask or Rectangle Mask (Select Rectangle or Select Lasso).",
      "按住 Ctrl：遮罩笔刷（Ctrl+Shift：选择笔刷）。单击，或按住 Ctrl 再按 B，即可选择 Mask Pen、Lasso Mask 或 "

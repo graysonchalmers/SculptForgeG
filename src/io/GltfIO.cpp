@@ -4,6 +4,8 @@
 
 #include "core/Json.h"
 #include "io/TextureExport.h"
+#include "core/Image.h"
+#include "core/Texture.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -655,6 +657,46 @@ struct GltfReader {
         return true;
     }
 
+    // The base colour image index of a primitive's material (-1 when it has none).
+    int baseColorImageOf(const Json& prim) const {
+        const int mat = jsonIndex(prim["material"]);
+        if (mat < 0 || size_t(mat) >= doc["materials"].size()) return -1;
+        const int tex = jsonIndex(doc["materials"][size_t(mat)]["pbrMetallicRoughness"]["baseColorTexture"]["index"]);
+        if (tex < 0 || size_t(tex) >= doc["textures"].size()) return -1;
+        const int img = jsonIndex(doc["textures"][size_t(tex)]["source"]);
+        return img >= 0 && size_t(img) < doc["images"].size() ? img : -1;
+    }
+
+    // The encoded bytes (PNG/JPEG) of image `index`: a buffer view, a data URI or a file beside the model.
+    bool imageBytes(int index, const std::filesystem::path& folder, std::vector<uint8_t>& out) {
+        const Json& im = doc["images"][size_t(index)];
+        const std::string& uri = im["uri"].asString();
+        if (uri.empty()) {
+            const int bvIndex = jsonIndex(im["bufferView"]);
+            if (bvIndex < 0 || size_t(bvIndex) >= doc["bufferViews"].size()) return false;
+            const Json& bv = doc["bufferViews"][size_t(bvIndex)];
+            size_t buf, offset, length;
+            if (!wholeNumber(bv["buffer"], kMaxJsonInteger, buf) || buf >= buffers.size() ||
+                !optionalWhole(bv["byteOffset"], kMaxJsonInteger, 0, offset) ||
+                !wholeNumber(bv["byteLength"], kMaxJsonInteger, length))
+                return false;
+            const size_t size = buffers[buf].size();
+            if (length > size || offset > size - length) return false;
+            out.assign(buffers[buf].begin() + std::ptrdiff_t(offset), buffers[buf].begin() + std::ptrdiff_t(offset + length));
+            return true;
+        }
+        if (uri.rfind("data:", 0) == 0) {
+            const size_t comma = uri.find(',');
+            if (comma == std::string::npos) return false;
+            out = base64Decode(uri.substr(comma + 1));
+            return !out.empty();
+        }
+        const std::filesystem::path rel(std::u8string(uri.begin(), uri.end()));
+        if (uri.find("..") != std::string::npos || rel.is_absolute() || rel.has_root_name() || rel.has_root_directory())
+            return false;
+        return readFile(folder / rel, out);
+    }
+
     bool fail(const std::string& msg) {
         if (error.empty()) error = msg;
         return false;
@@ -691,6 +733,8 @@ struct GltfObject {
     std::vector<float> targetWeights;
     bool targetsConsistent = true;
     bool uvs = false; // some primitive had TEXCOORD_0
+    int baseColorImage = -1;       // glTF image of the base colour texture (fork patch: kept on import)
+    bool baseColorMixed = false;   // primitives use different images: no single texture fits the UVs
 };
 
 // Splits a GLB container into its JSON text and BIN chunk; false with `error` on a malformed container.
@@ -930,6 +974,11 @@ bool readGltf(const std::string& path, bool split, std::vector<MeshObject>& out,
                     if (!r.readFloats(jsonIndex(uvAcc), 2, uv)) return false;
                     o.uvs = true;
                 }
+                {
+                    const int image = r.baseColorImageOf(prim);
+                    if (o.baseColorImage < 0 && !o.baseColorMixed && m.triangles.empty()) o.baseColorImage = image;
+                    else if (image != o.baseColorImage) o.baseColorMixed = true;
+                }
                 for (size_t t = 0; t + 2 < idx.size(); t += 3) {
                     if (idx[t] >= pos.size() || idx[t + 1] >= pos.size() || idx[t + 2] >= pos.size())
                         return r.fail("Index out of range");
@@ -1015,7 +1064,23 @@ bool readGltf(const std::string& path, bool split, std::vector<MeshObject>& out,
                 layers.push_back({o.targetNames[k], std::move(o.targetDeltas[k]), o.targetWeights[k]});
         if (!o.m.colors.empty()) o.m.colors.resize(o.m.positions.size(), glm::vec3(1.0f));
         if (!o.uvs) o.m.uvs.clear();
-        out.push_back({o.name, weldImported(o.m, layers)});
+        Mesh welded = weldImported(o.m, layers);
+        // The base colour texture rides along (TRELLIS and most generators bake one): decoded onto the UVs,
+        // so the model opens textured and strokes can paint into it. Skipped when primitives mix images.
+        if (o.uvs && o.baseColorImage >= 0 && !o.baseColorMixed) {
+            std::vector<uint8_t> bytes;
+            Image img;
+            std::string imgErr;
+            if (r.imageBytes(o.baseColorImage, fsPath.parent_path(), bytes) &&
+                Image::decode(bytes.data(), bytes.size(), img, imgErr)) {
+                auto tex = makeTexture(1, 1);
+                if (loadTextureImage(*tex, img, imgErr)) {
+                    welded.texture = std::move(tex);
+                    welded.paintToTexture = true;
+                }
+            }
+        }
+        out.push_back({o.name, std::move(welded)});
     }
     if (out.empty() && !(splatsOut && !splatsOut->empty())) {
         error = r.error.empty() ? "No triangle meshes found in " + path : r.error;
