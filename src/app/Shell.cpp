@@ -2725,16 +2725,22 @@ void App::drawShelfItem(int shelf, int index, const std::string& item, bool vert
             put(mc.c_str(), theme::text, groupGap);
             ImGui::LogText("Micro %s ", mc.c_str());
         }
+        // Fork patch: the counts go amber from 500k and red from 1.5M triangles (heavy meshes slow every stroke).
+        auto heat = [](size_t n) -> const ImVec4& {
+            static const ImVec4 amber = theme::rgb(0xe8c44a);
+            return n >= 1500000 ? theme::danger : n >= 500000 ? amber : theme::text;
+        };
         put("ActiveTris", theme::textDim, gap);
-        put(a.c_str(), theme::text, groupGap);
+        put(a.c_str(), heat(active), groupGap);
         put("TotalTris", theme::textDim, gap);
-        put(t.c_str(), theme::text, 0.0f);
+        put(t.c_str(), heat(total), 0.0f);
         ImGui::LogText("ActiveTris %s TotalTris %s", a.c_str(), t.c_str());
         if (fontSmall_) ImGui::PopFont();
         ImGui::EndGroup();
         ui::HelpText("ActiveTris / TotalTris", nullptr,
                      "Triangles you can see and sculpt (visible Parts, hidden parts left out) and in the whole scene. "
-                     "Micro: the micro triangles of the visible Parts' micro levels (Geometry > Micro).",
+                     "Micro: the micro triangles of the visible Parts' micro levels (Geometry > Micro). "
+                     "Counts turn amber from 500k and red from 1.5M triangles.",
                      "Draw");
     } else if (item.rfind("widget.tile.", 0) == 0) {
         const float w = fitW(std::floor((shell_.narrow ? 60.0f : 76.0f) * s * shelfFit_[shelf]));

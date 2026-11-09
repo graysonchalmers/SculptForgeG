@@ -253,6 +253,18 @@ constexpr SectionMark kSectionMarks[] = {
     {"tool.selection_sets", 0xe8c44a, ICON_LC_SHAPES}, {"tool.paint_layers", 0xf0882e, ICON_LC_PAINT_BUCKET},
     {"tool.texture", 0xf0882e, ICON_LC_IMAGE},       {"tool.bake", 0xf0882e, ICON_LC_FLAME},
     {"tool.export", 0x8aa0b4, ICON_LC_DOWNLOAD},     {"tool.display", 0x8aa0b4, ICON_LC_SUN},
+    // Preferences: one family per kind of setting.
+    {"preferences.config", 0x8aa0b4, ICON_LC_SAVE},  {"preferences.interface", 0x5aa9e6, ICON_LC_SETTINGS},
+    {"preferences.input", 0xe8c44a, ICON_LC_MOUSE},  {"preferences.cursor", 0xe8c44a, ICON_LC_MOUSE_POINTER},
+    {"preferences.hints", 0x5aa9e6, ICON_LC_LIGHTBULB}, {"preferences.hotkeys", 0xe8c44a, ICON_LC_KEYBOARD},
+    {"preferences.display", 0x5aa9e6, ICON_LC_MONITOR}, {"preferences.library", 0xb48ae8, ICON_LC_LIBRARY},
+    {"preferences.tablet", 0xe8c44a, ICON_LC_TABLET}, {"preferences.performance", 0x4fc3a1, ICON_LC_ZAP},
+    {"preferences.ai", 0xb48ae8, ICON_LC_SPARKLES},  {"preferences.updates", 0x8aa0b4, ICON_LC_REFRESH_CW},
+    {"preferences.integrations", 0x8aa0b4, ICON_LC_PLUG}, {"preferences.support", 0xe5604a, ICON_LC_LIFE_BUOY},
+    {"preferences.autosave", 0x8aa0b4, ICON_LC_HISTORY},
+    // Brush palette sub-sections.
+    {"brush.cloth_options", 0x5aa9e6, ICON_LC_SHIRT}, {"brush.kelvinlet", 0x4fc3a1, ICON_LC_WAVES},
+    {"brush.vdm", 0xb48ae8, ICON_LC_BOXES},
 };
 const SectionMark* sectionMark(const char* id) {
     for (const auto& m : kSectionMarks) if (std::string(id) == m.id) return &m;

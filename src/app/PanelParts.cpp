@@ -10,6 +10,7 @@
 #include "io/BridgeProtocol.h"
 #include "app/Demo.h"
 #include "app/Theme.h"
+#include <iterator>
 #include "app/I18n.h"
 #include "app/Ui.h"
 #include <IconsLucide.h>
@@ -905,7 +906,12 @@ void App::drawPartFolderRow(int fi, float rowH, ImVec2 cellPad, PartFolderAction
         const ImU32 dim = ImGui::GetColorU32(style.Colors[ImGuiCol_TextDisabled]);
         const ImU32 text = ImGui::GetColorU32(style.Colors[visible ? ImGuiCol_Text : ImGuiCol_TextDisabled]);
         dl->AddText(at, dim, f.collapsed ? ICON_LC_CHEVRON_RIGHT : ICON_LC_CHEVRON_DOWN);
-        dl->AddText(ImVec2(at.x + iconW + 4.0f * scale, at.y), text, f.collapsed ? ICON_LC_FOLDER : ICON_LC_FOLDER_OPEN);
+        // Fork patch: each folder gets a stable colour from its name, so kitbash folders read at a glance.
+        static constexpr unsigned kFolderColours[] = {0x5aa9e6, 0x4fc3a1, 0xe8c44a, 0xf0882e, 0xe5604a, 0xb48ae8};
+        unsigned hash = 2166136261u;
+        for (const char c : f.name) hash = (hash ^ unsigned(static_cast<unsigned char>(c))) * 16777619u;
+        const ImU32 tint = theme::u32(theme::rgb(kFolderColours[hash % std::size(kFolderColours)]), visible ? 1.0f : 0.45f);
+        dl->AddText(ImVec2(at.x + iconW + 4.0f * scale, at.y), tint, f.collapsed ? ICON_LC_FOLDER : ICON_LC_FOLDER_OPEN);
     }
     ImGui::TableSetColumnIndex(2);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + textDy);

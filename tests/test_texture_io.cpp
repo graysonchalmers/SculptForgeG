@@ -359,6 +359,10 @@ TEST(texture_io_fbx_usd_glb_bridge_reference_texture) {
     CHECK(!fs::exists(dir / "model_color.png"));
     Mesh back;
     CHECK(loadGltf(str(dir / "model.glb"), back, err) && sameUvs(m, back));
+    // The base colour texture comes back with the model (fork patch): 16x16, bottom row (v = 0) still red.
+    CHECK(hasTexture(back) && back.texture->width == 16 && back.texture->height == 16);
+    CHECK(back.texture->pixels[1] == 0 && back.texture->pixels[2] == 0 && back.texture->pixels[0] > 200);
+    CHECK(back.paintToTexture);
 
     // Bridge: the PNG beside the file, recorded as the diffuse map.
     CHECK(saveBridge(str(dir / (std::string("model") + bridgefile::kExt)), m, "Sculpt", err));
